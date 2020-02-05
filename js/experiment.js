@@ -3,6 +3,7 @@ var ctx = {
   h: 800,
 
   trials: [],
+  results: [],
   participant: "",
   startBlock: 0,
   startTrial: 0,
@@ -10,8 +11,9 @@ var ctx = {
   shapes: [],
   x_size: 0,
   y_size: 0,
+  currentState: 0,
+  currentTimestamp: new Date(),
   
-
   participantIndex:"ParticipantID",
   blockIndex:"Block1",
   trialIndex:"TrialID",
@@ -58,7 +60,7 @@ var nextTrial = function() {
   drawContainer(shapesContainer);
 
   // Init frame and target object
-  var frame = d3.select("#frame");   
+  ctx.frame = d3.select("#frame");   
   var n_objects = convertObjectCount(ctx.trials[ctx.cpt]["OC"]);
   ctx.shapes = [];
   var visual_variable = ctx.trials[ctx.cpt]["VV"];
@@ -112,20 +114,39 @@ var nextTrial = function() {
       }
     }
   }
- 
-  shuffle(ctx.shapes);
-  console.log("Shapes", ctx.shapes);
-  var counter = 0;
-  for(var i=0; i < ctx.x_size; i++) {
-    for(var j=0; j < ctx.y_size; j++) {
-      drawObject(frame, ctx.shapes[counter], i, j);
-      counter++;
-    }
-  }
+  drawShapes(ctx.frame, ctx.shapes);
+  ctx.currentTimestamp = new Date();
 }
 
 function onShapeClick(value) {
   console.log(value);
+  if(value === true){
+    // get ready for nextTrial
+    var successTimestamp = new Date();
+    var trialTimestamp = successTimestamp - ctx.currentTimestamp;
+    ctx.results[ctx.cpt]["ExeTime"] = trialTimestamp;
+    console.log(ctx.results[ctx.cpt]);
+    nextTrial();
+  } else {
+    // repeat this trial
+    ctx.results[ctx.cpt]["Errors"] += 1;
+    drawShapes(ctx.frame, ctx.shapes)
+    ctx.currentTimestamp = new Date();
+
+  }
+}
+
+function drawShapes(frame, shapes) {
+  console.log("Shapes", shapes);
+  frame.selectAll("*").remove();
+  shuffle(shapes);
+  var counter = 0;
+  for(var i=0; i < ctx.x_size; i++) {
+    for(var j=0; j < ctx.y_size; j++) {
+      drawObject(frame, shapes[counter], i, j);
+      counter++;
+    }
+  }
 }
 
 function drawPlaceholdersMask(frame, shapes) { 
@@ -188,7 +209,31 @@ function drawObjectPlaceholder(frame, object, xTranslate, yTranslate) {
     .attr("cy", 100 * yTranslate+1)
     .attr("onclick", "onShapeClick("+ object.target +")");
 }
-  
+
+function elaborateCSV() {
+  if(ctx.currentState !== state.NONE || ctx.currentState == state.INTERTITLE) {
+    const items = ctx.results;
+    const replacer = (key, value) => value === null ? '' : value; // specify how you want to handle null values here
+    const header = Object.keys(items[0]);
+    let csv = items.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+    csv.unshift(header.join(','));
+    csv = csv.join('\r\n');
+    console.log(csv);
+    downloadCSV(csv);
+  }
+}
+
+function downloadCSV(csv) {
+  var csvContent = "data:text/csv;charset=utf-8," + csv;
+  var encodedUri = encodeURI(csvContent);
+  var link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "preattentive_experiment_results_" + new Date().toISOString() + ".csv");
+  document.body.appendChild(link); // Required for FF
+  link.click();
+  document.body.removeChild(link); 
+}
+
 // Shuffles an array of objects
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
@@ -211,16 +256,22 @@ var convertObjectCount = function(countName) {
 
 // Keyboard input capture
 function keyboardCapture(event) {
+  event.preventDefault();
   if(event.keyCode == 32) {
-      event.preventDefault();
       console.log("Spacebar");
-      var frame = d3.select("#frame");
-      var shapesContainer = d3.select("#mainScene");
-      //drawContainer(shapesContainer);
+      ctx.currentState = 3;
+      var frame = ctx.frame;
       drawPlaceholdersMask(frame, ctx.shapes);
   }
   else if(event.keyCode == 13) {
       console.log("Enter");
+      if(ctx.currentState === state.INTERTITLE){
+          ctx.currentState = 2;
+          startExperiment();
+      } else if(ctx.currentState === state.PLACEHOLDERS ) {
+          ctx.currentState = 2;
+          nextTrial();
+      }
   }
 };
 
@@ -230,7 +281,6 @@ var startExperiment = function(event) {
   event.preventDefault();
 
   console.log(event);
-
   for(var i = 0; i < ctx.trials.length; i++) {
     if(ctx.trials[i][ctx.participantIndex] === ctx.participant) {
       if(parseInt(ctx.trials[i][ctx.blockIndex]) == ctx.startBlock) {
@@ -240,7 +290,10 @@ var startExperiment = function(event) {
       }
     }
   }
-
+  ctx.results = ctx.trials;
+  for(var i = 0; i < ctx.results.length; i++) {
+    ctx.trials[i]["Errors"] = 0;
+  } 
   console.log("start experiment at "+ctx.cpt);
   nextTrial();
 }
@@ -323,6 +376,7 @@ var loadData = function(svgEl){
 
   d3.csv("../csv/PreattentiveExperiment.csv").then(function(data){
     ctx.trials = data;
+    ctx.currentState = 1;
 
     var participant = "";
     var options = [];
