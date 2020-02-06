@@ -1,9 +1,10 @@
 var ctx = {
-  w: 1400,
+  w: 1000,
   h: 800,
 
   trials: [],
   results: [],
+  all_results : [],
   participant: "",
   startBlock: 0,
   startTrial: 0,
@@ -33,23 +34,27 @@ var state = {
 // process the next trial
 var nextTrial = function() {
   ctx.cpt++;
-  console.log(ctx.trials[ctx.cpt]["ParticipantID"]);
-  console.log(ctx.trials[ctx.cpt]["VV"]);
-  console.log(ctx.trials[ctx.cpt]["OC"]);
-  var shapesContainer = d3.select("#mainScene");
-  drawContainer(shapesContainer);
+  ctx.results[ctx.cpt] = ctx.trials[ctx.cpt];
+  ctx.results[ctx.cpt]["Errors"] = 0;
+  ctx.results[ctx.cpt]["ExeTime"] = '';
+  ctx.all_results.push(ctx.results[ctx.cpt]);
   if(ctx.participant !== ctx.trials[ctx.cpt]["ParticipantID"]){
+    ctx.results[ctx.cpt] = undefined;
     endExperiment();
   } else {
     // Init frame and target object
-    ctx.frame = d3.select("#frame");   
-    ctx.results[ctx.cpt]["Errors"] = 0;
+    console.log(ctx.trials[ctx.cpt]["ParticipantID"]);
+    console.log(ctx.trials[ctx.cpt]["VV"]);
+    console.log(ctx.trials[ctx.cpt]["OC"]);
+    var shapesContainer = d3.select("#mainScene");
+    drawContainer(shapesContainer);
+    ctx.frame = d3.select("#frame");
     var n_objects = convertObjectCount(ctx.trials[ctx.cpt]["OC"]);
     ctx.shapes = [];
     var visual_variable = ctx.trials[ctx.cpt]["VV"];
     ctx.x_size = n_objects / 4;  //24 -> 6, 16 -> 4, 8 -> 2
     ctx.y_size = n_objects / ctx.x_size; // 24 -> 4, 16 ->4, 8 -> 4
-    var targetStrokeWidth = Math.random() < 0.5 ? 1 : 2;
+    var targetStrokeWidth = Math.random() < 0.5 ? 1 : 6;
     var targetShape = Math.random() < 0.5 ? "circle" : "ellipse";
 
     ctx.shapes.push({stroke: targetStrokeWidth, shape: targetShape, target: true});
@@ -57,7 +62,7 @@ var nextTrial = function() {
     if(visual_variable === "Width") {
       for(var i=1; i<n_objects; i++) {
         ctx.shapes.push( {
-          stroke: (targetStrokeWidth === 1? 2 : 1),
+          stroke: (targetStrokeWidth === 1? 6 : 1),
           shape: targetShape,
           target: false
         });
@@ -76,21 +81,21 @@ var nextTrial = function() {
     // Generate shapes objects
     if(visual_variable === "Width_Shape") {
       for(var i=0; i<n_objects-1; i++) {
-        if(i < (n_objects/4) + 1) {
+        if(i < (n_objects/4)) {
           ctx.shapes.push( {
             stroke: targetStrokeWidth,
             shape: (targetShape === "circle" ? "ellipse" : "circle"),
             target: false
           });
-        }else if(((i>n_objects/4) + 1) && (i<(n_objects/2) + 2)) {
+        }else if(((i>n_objects/4)) && (i<(n_objects/2)+ 1)) {
           ctx.shapes.push( {
-            stroke: (targetStrokeWidth === 1? 2 : 1),
+            stroke: (targetStrokeWidth === 1? 6 : 1),
             shape: targetShape,
             target: false
           });
         } else {
           ctx.shapes.push( {
-            stroke: (targetStrokeWidth === 1? 2 : 1),
+            stroke: (targetStrokeWidth === 1? 6 : 1),
             shape: (targetShape === "circle" ? "ellipse" : "circle"),
             target: false
           });
@@ -108,9 +113,7 @@ function onShapeClick(value) {
     // get ready for nextTrial
     var successTimestamp = new Date();
     var trialTimestamp = successTimestamp - ctx.currentTimestamp;
-    ctx.results[ctx.cpt] = ctx.trials[ctx.cpt];
     ctx.results[ctx.cpt]["ExeTime"] = trialTimestamp;
-    console.log(ctx.results[ctx.cpt]);
     nextTrial();
   } else {
     // repeat this trial
@@ -147,26 +150,32 @@ function drawPlaceholdersMask(frame, shapes) {
 function drawContainer(container) {
   container.selectAll("*").remove();
   container.append("rect")
-        .attr("transform", "translate(475,100)")
+        .style('transform', 'translate(50%, 50%)')
         .attr("style", "fill:white")
-        .attr("width", 800)
-        .attr("height", 600)
+        .attr("width", 1000)
+        .attr("height", 800)
         .attr("align","center")
-        .attr("stroke", "black")
-        .attr("stroke-width", 1);
-  container.append("g")
-        .attr("transform", "translate(600,200)")
+        //.attr("stroke", "black")
+        //.attr("stroke-width", 4);
+  var group = container.append("g")
         .attr("id", "frame")
-        .attr("x", 300)
         .attr("width", 800)
         .attr("height", 800);
+  if(ctx.trials[ctx.cpt]["OC"] === "Low"){
+    group.style('transform', 'translate(45%, 25%)');
+  } else if(ctx.trials[ctx.cpt]["OC"] === "Medium") {
+    group.style('transform', 'translate(35%, 25%)')
+  } else if(ctx.trials[ctx.cpt]["OC"] === "High"){
+    group.style('transform', 'translate(25%, 25%)');
+  }
+    
 }
 
 // draws the object inside the frame
 function drawObject(frame, object, xTranslate, yTranslate) {
   var currentObject = frame.append(object.shape)
-    .attr("style", "fill:papayawhip")
-    .attr("stroke", "black")
+    .attr("stroke", "#544d68")
+    .attr("style", "fill:#80d6ff")
     .attr("stroke-width", object.stroke);
   if(object.shape === "circle") {
     currentObject.attr("r", 25)
@@ -176,36 +185,56 @@ function drawObject(frame, object, xTranslate, yTranslate) {
   }
   if(object.shape === "ellipse") {
     currentObject.attr("rx", 30)
-      .attr("ry", 20)
+      .attr("ry", 10)
       .attr("cx", 100 * xTranslate+1)
       .attr("cy", 100 * yTranslate+1);
-  }
+    frame.append(object.shape)
+    .attr("stroke", "#544d68")
+    .attr("style", "fill:#80d6ff")
+    .attr("stroke-width", object.stroke)
+    .attr("rx", 10)
+    .attr("ry", 30)
+    .attr("cx", 100 * xTranslate+1)
+    .attr("cy", 100 * yTranslate+1);
+    }
   
 }
 
 // draws the object placeholder inside the frame
 function drawObjectPlaceholder(frame, object, xTranslate, yTranslate) {
   var currentObject = frame.append("circle")
-    .attr("style", "fill:lightgray")
-    .attr("stroke", "black")
-    .attr("stroke-width", 4)
-    .attr("r", 30)
+    .attr("style", "fill:#0077c2")
+    .attr("stroke", "#0077c2")
+    .attr("stroke-width", 6)
+    .attr("r", 32)
     .attr("cx", 100 * xTranslate+1)
     .attr("cy", 100 * yTranslate+1)
     .attr("onclick", "onShapeClick("+ object.target +")");
 }
 
-function elaborateCSV() {
-  if(ctx.currentState !== state.NONE || ctx.currentState == state.INTERTITLE) {
-    const items = ctx.results;
-    const replacer = (key, value) => value === null ? '' : value; // specify how you want to handle null values here
-    const header = Object.keys(items[0]);
-    let csv = items.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
-    csv.unshift(header.join(','));
-    csv = csv.join('\r\n');
-    console.log(csv);
-    downloadCSV(csv);
+var elaborateCSV = function(allResults) {
+  let items = [];
+  if(allResults) {
+    for(var i=0; i<ctx.all_results.length; i++) {
+      if(ctx.all_results[i] !== undefined) {
+        items.push(ctx.all_results[i]);
+      }
+    }
+  } else {
+    for(var i=0; i<ctx.results.length; i++) {
+      if(ctx.results[i] !== undefined) {
+        items.push(ctx.results[i]);
+      }
+    }
   }
+  
+  const replacer = (key, value) => value === null ? '' : value; // specify how you want to handle null values here
+  const header = Object.keys(items[0]);
+  let csv = items.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+  csv.unshift(header.join(','));
+  csv = csv.join('\r\n');
+  console.log(csv);
+  downloadCSV(csv);
 }
 
 function downloadCSV(csv) {
@@ -243,10 +272,12 @@ var convertObjectCount = function(countName) {
 function keyboardCapture(event) {
   event.preventDefault();
   if(event.keyCode == 32) {
+    if(ctx.currentState !== state.NONE && ctx.currentState !== state.INTERTITLE){
       console.log("Spacebar");
       ctx.currentState = state.PLACEHOLDERS;
       var frame = ctx.frame;
       drawPlaceholdersMask(frame, ctx.shapes);
+    }
   }
   else if(event.keyCode == 13) {
       console.log("Enter");
@@ -257,6 +288,8 @@ function keyboardCapture(event) {
         startExperiment(event);
       } 
       if(ctx.currentState === state.NONE){
+        var instructionContainer = d3.select('#instructions');
+        instructionContainer.selectAll("*").remove();
         createScene();
       }
       /*else if(ctx.currentState === state.PLACEHOLDERS ) {
@@ -299,11 +332,23 @@ var showIntertitle = function() {
     d3.select("#instructions")
       .append('p')
       .classed('instr', true)
-      .html("Thanks! The esperiment is over!<br> Use the <code>Print</code> button to download your results");
+      .html("Thanks! The experiment is over!<br> Use the <code>Print</code> button to download your results <br> Use <code>Print All</code> to download the full set");
     d3.select("#instructions")
       .append('p')
       .classed('instr', true)
       .html("Press <code>Enter</code> key when ready to start a new experiment.");
+    d3.select("#instructions")
+      .append('button')
+      .classed('instr', true)
+      .attr('onclick', 'elaborateCSV(false)')
+      .attr('onkeyup','ignore(event)')
+      .html("Print");
+    d3.select("#instructions")
+      .append('button')
+      .classed('instr', true)
+      .attr('onclick', 'elaborateCSV(true)')
+      .attr('onkeyup','ignore(event)')
+      .html("Print All");
     
   }
 
@@ -319,18 +364,20 @@ var startExperiment = function(event) {
     if(ctx.trials[i][ctx.participantIndex] === ctx.participant) {
       if(parseInt(ctx.trials[i][ctx.blockIndex]) == ctx.startBlock) {
         if(parseInt(ctx.trials[i][ctx.trialIndex]) == ctx.startTrial) {
-          ctx.cpt = i - 1;
+          ctx.cpt = i-1;
         }
       }
     }
   }
-  ctx.results[0] = ctx.trials[0];
+  ctx.results = [];
   console.log("start experiment at "+ctx.cpt);
   nextTrial();
 }
 
 function endExperiment() {
-
+  var shapesContainer = d3.select("#mainScene");
+  shapesContainer.selectAll("*").remove();
+  showIntertitle();
 }
 
 var createScene = function(){
