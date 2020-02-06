@@ -43,6 +43,7 @@ var nextTrial = function() {
   } else {
     // Init frame and target object
     ctx.frame = d3.select("#frame");   
+    ctx.results[ctx.cpt]["Errors"] = 0;
     var n_objects = convertObjectCount(ctx.trials[ctx.cpt]["OC"]);
     ctx.shapes = [];
     var visual_variable = ctx.trials[ctx.cpt]["VV"];
@@ -107,6 +108,7 @@ function onShapeClick(value) {
     // get ready for nextTrial
     var successTimestamp = new Date();
     var trialTimestamp = successTimestamp - ctx.currentTimestamp;
+    ctx.results[ctx.cpt] = ctx.trials[ctx.cpt];
     ctx.results[ctx.cpt]["ExeTime"] = trialTimestamp;
     console.log(ctx.results[ctx.cpt]);
     nextTrial();
@@ -322,10 +324,7 @@ var startExperiment = function(event) {
       }
     }
   }
-  ctx.results = ctx.trials;
-  for(var i = 0; i < ctx.results.length; i++) {
-    ctx.trials[i]["Errors"] = 0;
-  } 
+  ctx.results[0] = ctx.trials[0];
   console.log("start experiment at "+ctx.cpt);
   nextTrial();
 }
