@@ -29,26 +29,6 @@ var state = {
   PLACEHOLDERS: 3
 };
 
-// Draws the container for the instructions
-function drawContainer(instructions) {
-  instructions.selectAll("*").remove();
-  instructions.append("rect")
-        .attr("transform", "translate(475,100)")
-        .attr("style", "fill:white")
-        .attr("width", 800)
-        .attr("height", 600)
-        .attr("align","center")
-        .attr("stroke", "black")
-        .attr("stroke-width", 1);
-  instructions.append("g")
-        .attr("transform", "translate(600,200)")
-        .attr("id", "frame")
-        .attr("x", 300)
-        .attr("width", 800)
-        .attr("height", 800);
-}
-
-
 
 // process the next trial
 var nextTrial = function() {
@@ -58,59 +38,62 @@ var nextTrial = function() {
   console.log(ctx.trials[ctx.cpt]["OC"]);
   var shapesContainer = d3.select("#mainScene");
   drawContainer(shapesContainer);
+  if(ctx.participant !== ctx.trials[ctx.cpt]["ParticipantID"]){
+    endExperiment();
+  } else {
+    // Init frame and target object
+    ctx.frame = d3.select("#frame");   
+    var n_objects = convertObjectCount(ctx.trials[ctx.cpt]["OC"]);
+    ctx.shapes = [];
+    var visual_variable = ctx.trials[ctx.cpt]["VV"];
+    ctx.x_size = n_objects / 4;  //24 -> 6, 16 -> 4, 8 -> 2
+    ctx.y_size = n_objects / ctx.x_size; // 24 -> 4, 16 ->4, 8 -> 4
+    var targetStrokeWidth = Math.random() < 0.5 ? 1 : 2;
+    var targetShape = Math.random() < 0.5 ? "circle" : "ellipse";
 
-  // Init frame and target object
-  ctx.frame = d3.select("#frame");   
-  var n_objects = convertObjectCount(ctx.trials[ctx.cpt]["OC"]);
-  ctx.shapes = [];
-  var visual_variable = ctx.trials[ctx.cpt]["VV"];
-  ctx.x_size = n_objects / 4;  //24 -> 6, 16 -> 4, 8 -> 2
-  ctx.y_size = n_objects / ctx.x_size; // 24 -> 4, 16 ->4, 8 -> 4
-  var targetStrokeWidth = Math.random() < 0.5 ? 1 : 2;
-  var targetShape = Math.random() < 0.5 ? "circle" : "ellipse";
+    ctx.shapes.push({stroke: targetStrokeWidth, shape: targetShape, target: true});
 
-  ctx.shapes.push({stroke: targetStrokeWidth, shape: targetShape, target: true});
-
-  if(visual_variable === "Width") {
-    for(var i=1; i<n_objects; i++) {
-      ctx.shapes.push( {
-        stroke: (targetStrokeWidth === 1? 2 : 1),
-        shape: targetShape,
-        target: false
-      });
-    }
-  }
-  if(visual_variable === "Shape") {
-    for(var i=1; i<n_objects; i++) {
-      ctx.shapes.push( {
-        stroke: targetStrokeWidth,
-        shape: (targetShape === "circle" ? "ellipse" : "circle"),
-        target: false
-      });
-    }
-  }
-
-  // Generate shapes objects
-  if(visual_variable === "Width_Shape") {
-    for(var i=0; i<n_objects-1; i++) {
-      if(i < (n_objects/4) + 1) {
-        ctx.shapes.push( {
-          stroke: targetStrokeWidth,
-          shape: (targetShape === "circle" ? "ellipse" : "circle"),
-          target: false
-        });
-      }else if(((i>n_objects/4) + 1) && (i<(n_objects/2) + 2)) {
+    if(visual_variable === "Width") {
+      for(var i=1; i<n_objects; i++) {
         ctx.shapes.push( {
           stroke: (targetStrokeWidth === 1? 2 : 1),
           shape: targetShape,
           target: false
         });
-      } else {
+      }
+    }
+    if(visual_variable === "Shape") {
+      for(var i=1; i<n_objects; i++) {
         ctx.shapes.push( {
-          stroke: (targetStrokeWidth === 1? 2 : 1),
+          stroke: targetStrokeWidth,
           shape: (targetShape === "circle" ? "ellipse" : "circle"),
           target: false
         });
+      }
+    }
+
+    // Generate shapes objects
+    if(visual_variable === "Width_Shape") {
+      for(var i=0; i<n_objects-1; i++) {
+        if(i < (n_objects/4) + 1) {
+          ctx.shapes.push( {
+            stroke: targetStrokeWidth,
+            shape: (targetShape === "circle" ? "ellipse" : "circle"),
+            target: false
+          });
+        }else if(((i>n_objects/4) + 1) && (i<(n_objects/2) + 2)) {
+          ctx.shapes.push( {
+            stroke: (targetStrokeWidth === 1? 2 : 1),
+            shape: targetShape,
+            target: false
+          });
+        } else {
+          ctx.shapes.push( {
+            stroke: (targetStrokeWidth === 1? 2 : 1),
+            shape: (targetShape === "circle" ? "ellipse" : "circle"),
+            target: false
+          });
+        }
       }
     }
   }
@@ -259,21 +242,70 @@ function keyboardCapture(event) {
   event.preventDefault();
   if(event.keyCode == 32) {
       console.log("Spacebar");
-      ctx.currentState = 3;
+      ctx.currentState = state.PLACEHOLDERS;
       var frame = ctx.frame;
       drawPlaceholdersMask(frame, ctx.shapes);
   }
   else if(event.keyCode == 13) {
       console.log("Enter");
       if(ctx.currentState === state.INTERTITLE){
-          ctx.currentState = 2;
-          startExperiment();
-      } else if(ctx.currentState === state.PLACEHOLDERS ) {
-          ctx.currentState = 2;
-          nextTrial();
+        ctx.currentState = state.SHAPES;
+        var instructionContainer = d3.select('#instructions');
+        instructionContainer.selectAll("*").remove();
+        startExperiment(event);
+      } 
+      if(ctx.currentState === state.NONE){
+        createScene();
       }
+      /*else if(ctx.currentState === state.PLACEHOLDERS ) {
+          ctx.currentState = state.SHAPES;
+          nextTrial();
+      }*/
   }
 };
+
+var showIntertitle = function() {
+  if(ctx.currentState === state.NONE) {
+    ctx.currentState = state.INTERTITLE;
+
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("Hi! Thank you for helping us out with this experiment. <br>Dont worry, it shouldn't take more than 5 min");
+
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("1. Pay close attention to the figures shown in the image, one of them is different from all the others!");
+
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("<b>2. When you spot the intruder, press <code> space bar </code>");
+
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("3. Click on the circle where the intruder was last seen");
+
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("Press <code>Enter</code> key when ready to start.");
+  }else {
+    ctx.currentState = state.NONE
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("Thanks! The esperiment is over!<br> Use the <code>Print</code> button to download your results");
+    d3.select("#instructions")
+      .append('p')
+      .classed('instr', true)
+      .html("Press <code>Enter</code> key when ready to start a new experiment.");
+    
+  }
+
+}
 
 document.addEventListener('keypress', keyboardCapture);
 
@@ -298,6 +330,10 @@ var startExperiment = function(event) {
   nextTrial();
 }
 
+function endExperiment() {
+
+}
+
 var createScene = function(){
   var svgEl = d3.select("#scene").append("svg");
   svgEl.append("center");
@@ -306,6 +342,12 @@ var createScene = function(){
   svgEl.attr("height", ctx.h)
   .classed('centered', true);
 
+  var instructions = d3.select('#scene').append("div")
+    .attr("id", "instructions")
+    .attr("width", 400)
+    .attr("height", 400);
+
+  showIntertitle();
   loadData(svgEl);
 };
 
@@ -376,7 +418,6 @@ var loadData = function(svgEl){
 
   d3.csv("../csv/PreattentiveExperiment.csv").then(function(data){
     ctx.trials = data;
-    ctx.currentState = 1;
 
     var participant = "";
     var options = [];
