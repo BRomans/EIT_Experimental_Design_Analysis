@@ -13,7 +13,7 @@ var ctx = {
   x_size: 0,
   y_size: 0,
   currentState: 0,
-  currentTimestamp: new Date(),
+  currentTimestamp: 0,
   
   participantIndex:"ParticipantID",
   blockIndex:"Block1",
@@ -104,22 +104,19 @@ var nextTrial = function() {
     }
   }
   drawShapes(ctx.frame, ctx.shapes);
-  ctx.currentTimestamp = new Date();
+  ctx.currentTimestamp = new Date().getTime();
 }
 
 function onShapeClick(value) {
   console.log(value);
   if(value === true){
     // get ready for nextTrial
-    var successTimestamp = new Date();
-    var trialTimestamp = successTimestamp - ctx.currentTimestamp;
-    ctx.results[ctx.cpt]["ExeTime"] = trialTimestamp;
     nextTrial();
   } else {
     // repeat this trial
     ctx.results[ctx.cpt]["Errors"] += 1;
     drawShapes(ctx.frame, ctx.shapes)
-    ctx.currentTimestamp = new Date();
+    ctx.currentTimestamp = new Date().getTime();
 
   }
 }
@@ -274,6 +271,9 @@ function keyboardCapture(event) {
   if(event.keyCode == 32) {
     if(ctx.currentState !== state.NONE && ctx.currentState !== state.INTERTITLE){
       console.log("Spacebar");
+      var successTimestamp = new Date().getTime();
+      var trialTimestamp = successTimestamp - ctx.currentTimestamp;
+      ctx.results[ctx.cpt]["ExeTime"] = trialTimestamp;
       ctx.currentState = state.PLACEHOLDERS;
       var frame = ctx.frame;
       drawPlaceholdersMask(frame, ctx.shapes);
