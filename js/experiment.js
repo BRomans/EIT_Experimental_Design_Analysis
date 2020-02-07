@@ -239,7 +239,7 @@ function downloadCSV(csv) {
   var encodedUri = encodeURI(csvContent);
   var link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", "preattentive_experiment_results_" + new Date().toISOString() + ".csv");
+  link.setAttribute("download", "participant_"+ ctx.participant + "_preattentive_experiment_results_" + new Date().toISOString() + ".csv");
   document.body.appendChild(link); // Required for FF
   link.click();
   document.body.removeChild(link); 
